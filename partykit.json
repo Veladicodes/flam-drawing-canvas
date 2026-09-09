@@ -1,0 +1,6 @@
+{
+  "$schema": "https://www.partykit.io/schema.json",
+  "name": "flam-drawing-canvas",
+  "main": "party/main.ts",
+  "compatibilityDate": "2025-09-01"
+}

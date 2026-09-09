@@ -1,1 +1,1 @@
-{"root":["./vite.config.ts","./shared/protocol.ts"],"version":"5.9.3"}
+{"root":["./vite.config.ts","./party/main.ts","./shared/protocol.ts"],"version":"5.9.3"}
