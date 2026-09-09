@@ -5,15 +5,14 @@ import {
   Navigate,
   RouterProvider,
 } from "react-router-dom";
-import { nanoid } from "nanoid";
-
 import "./index.css";
+import { newRoomId } from "./lib/ids.ts";
 import { Room } from "./routes/Room.tsx";
 
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <Navigate to={`/room/${nanoid(10)}`} replace />,
+    element: <Navigate to={`/room/${newRoomId()}`} replace />,
   },
   {
     path: "/room/:roomId",
