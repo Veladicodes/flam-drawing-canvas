@@ -1,4 +1,4 @@
-import type { Stroke } from "./types.ts";
+import type { Stroke } from "../../shared/protocol.ts";
 
 /**
  * Size the canvas backing store to the element's CSS box times devicePixelRatio,

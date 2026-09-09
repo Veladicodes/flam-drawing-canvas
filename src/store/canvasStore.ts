@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import type { Stroke, Tool } from "../lib/types.ts";
+import type { Stroke, Tool } from "../../shared/protocol.ts";
 
 interface CanvasState {
   /** Committed strokes, in paint order. */

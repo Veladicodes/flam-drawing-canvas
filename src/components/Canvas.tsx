@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { fitCanvasToDisplay, renderStroke, repaint } from "../lib/draw.ts";
 import { newStrokeId } from "../lib/ids.ts";
 import { CLIENT_ID } from "../lib/session.ts";
-import type { Point, Stroke } from "../lib/types.ts";
+import type { Point, Stroke } from "../../shared/protocol.ts";
 import { useCanvasStore } from "../store/canvasStore.ts";
 
 type Props = {
