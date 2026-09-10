@@ -6,7 +6,9 @@ import {
   encode,
   type Stroke,
 } from "../../shared/protocol.ts";
+import { getIdentity } from "../lib/identity.ts";
 import { useCanvasStore } from "../store/canvasStore.ts";
+import { usePresenceStore } from "../store/presenceStore.ts";
 
 const PARTY_HOST = import.meta.env.VITE_PARTYKIT_HOST || "127.0.0.1:1999";
 
@@ -21,6 +23,8 @@ export function useRoomSocket(roomId: string) {
   const setStrokes = useCanvasStore((s) => s.setStrokes);
   const addStroke = useCanvasStore((s) => s.addStroke);
   const removeStroke = useCanvasStore((s) => s.removeStroke);
+  const setPeers = usePresenceStore((s) => s.setPeers);
+  const setSelf = usePresenceStore((s) => s.setSelf);
 
   useEffect(() => {
     const socket = new PartySocket({
@@ -30,17 +34,25 @@ export function useRoomSocket(roomId: string) {
     });
     socketRef.current = socket;
 
-    const onOpen = () => setConnected(true);
+    const onOpen = () => {
+      setConnected(true);
+      const { name, color } = getIdentity();
+      socket.send(encode({ t: "hello", name, color }));
+    };
     const onClose = () => setConnected(false);
     const onMessage = (event: MessageEvent<string>) => {
       const msg = decodeServerMessage(event.data);
       if (!msg) return;
       if (msg.t === "init") {
         setStrokes(msg.strokes);
+        setSelf(msg.self);
+        setPeers(msg.peers);
       } else if (msg.t === "stroke:add") {
         addStroke(msg.stroke);
       } else if (msg.t === "stroke:remove") {
         removeStroke(msg.id);
+      } else if (msg.t === "presence") {
+        setPeers(msg.peers);
       }
     };
 
@@ -56,7 +68,7 @@ export function useRoomSocket(roomId: string) {
       socketRef.current = null;
       setConnected(false);
     };
-  }, [roomId, setStrokes, addStroke, removeStroke]);
+  }, [roomId, setStrokes, addStroke, removeStroke, setPeers, setSelf]);
 
   const sendStroke = useCallback((stroke: Stroke) => {
     socketRef.current?.send(encode({ t: "stroke:add", stroke }));

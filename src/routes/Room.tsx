@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { Canvas } from "../components/Canvas.tsx";
+import { Presence } from "../components/Presence.tsx";
 import { Toolbar } from "../components/Toolbar.tsx";
 import { useRoomSocket } from "../net/useRoomSocket.ts";
 import { useCanvasStore } from "../store/canvasStore.ts";
@@ -62,6 +63,7 @@ export function Room() {
           {copied ? "copied!" : "copy invite link"}
         </button>
       </div>
+      <Presence />
       <Canvas onStrokeComplete={sendStroke} />
       <Toolbar onUndo={handleUndo} onRedo={handleRedo} />
     </>
