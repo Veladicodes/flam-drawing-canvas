@@ -82,10 +82,12 @@ Cursors live in their own store so 30ms updates never touch the canvas.
 | C ↔ S | `stroke:add { stroke }` | a completed stroke (echoed to all but sender) |
 | C ↔ S | `stroke:remove { id }` | undo — delete a stroke everywhere |
 | S → C | `presence { peers }` | roster changed |
-| C → S | `cursor { x, y }` · S → C | `cursor { id, x, y }` | throttled live pointer |
+| C → S | `cursor { x, y }` | local pointer, trailing-throttled ~30ms |
+| S → C | `cursor { id, x, y }` | a peer's pointer |
 
-A `Stroke` is `{ id, clientId, tool, color, size, points[], createdAt }` with
-points in CSS-pixel canvas space.
+A `Stroke` is `{ id, clientId, tool, color, size, points[], createdAt, lamport }`
+with points in CSS-pixel canvas space. A pen/eraser stroke has many points; a
+`rect` / `ellipse` / `arrow` stroke has just `[start, end]`.
 
 ---
 
@@ -125,14 +127,13 @@ expose *concurrency* (which strokes were truly parallel), enabling smarter merge
 
 - **Broadcast completed strokes, not live points.** One stroke = one atomic
   message: simple, and robust to packet loss. The cost is that peers see a stroke
-  appear only on `pointerup`. Live point streaming is a Tier 3 item.
-- **Undo is own-strokes-only, and redo re-appends at the end.** Per-client undo
-  avoids cross-user conflict entirely. A redone stroke goes back on top rather
-  than at its original z-index — acceptable for freehand; a real fix needs
-  positional or vector-clock ordering.
+  appear only on `pointerup`. Live point streaming is future work.
+- **Undo is own-strokes-only.** Per-client undo avoids cross-user conflict
+  entirely — you can only remove your own strokes. Redo re-sends the stroke
+  unchanged, so its original Lamport stamp puts it back at its original z-order.
 - **Cursor & stroke coordinates are absolute CSS pixels.** Simple and exact when
   viewports match; a smaller window sees peer content offset. Normalising to a
-  shared logical space (or a pan/zoom transform) is the Tier 3 fix.
+  shared logical space (or a pan/zoom transform) is future work.
 - **Presence is in-memory.** Peers vanish on server restart and are rebuilt from
   the next `hello`; only strokes are durable.
 - **Shapes reuse the `Stroke` model.** A rect/ellipse/arrow is a stroke whose
@@ -195,4 +196,5 @@ to `index.html` for client-side routing. Redeploy after setting the var.
 - Merge (not replace) on `init` to keep pre-connection strokes.
 - Interpolation/smoothing (Catmull-Rom or `perfect-freehand`) for nicer lines.
 - Normalise coordinates to a shared logical space so mismatched viewports agree.
-- Vector-clock stroke ordering for conflict-free concurrent edits (the R&D angle).
+- Upgrade the Lamport total order to vector clocks (expose true concurrency) and
+  ultimately per-stroke CRDT semantics — see "Stroke ordering" above.
