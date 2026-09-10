@@ -3,7 +3,7 @@
  * This is the single source of truth for every WebSocket payload.
  */
 
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 // ---------------------------------------------------------------------------
 // Domain model
@@ -26,14 +26,22 @@ export type Stroke = {
   createdAt: number;
 };
 
+/** A connected participant. Presence is ephemeral — never persisted. */
+export type Peer = {
+  id: string;
+  name: string;
+  color: string;
+};
+
 // ---------------------------------------------------------------------------
 // Client -> server
 // ---------------------------------------------------------------------------
 
-export type ClientMessage = {
-  t: "stroke:add";
-  stroke: Stroke;
-};
+export type ClientMessage =
+  | { t: "hello"; name: string; color: string }
+  | { t: "stroke:add"; stroke: Stroke }
+  | { t: "stroke:remove"; id: string }
+  | { t: "cursor"; x: number; y: number };
 
 // ---------------------------------------------------------------------------
 // Server -> client
@@ -46,11 +54,13 @@ export type ServerMessage =
       strokes: Stroke[];
       /** The connection id the server assigned to this client. */
       self: string;
+      /** Everyone already in the room. */
+      peers: Peer[];
     }
-  | {
-      t: "stroke:add";
-      stroke: Stroke;
-    };
+  | { t: "stroke:add"; stroke: Stroke }
+  | { t: "stroke:remove"; id: string }
+  | { t: "presence"; peers: Peer[] }
+  | { t: "cursor"; id: string; x: number; y: number };
 
 // ---------------------------------------------------------------------------
 // Helpers
