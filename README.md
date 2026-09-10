@@ -15,12 +15,15 @@ resyncs on network drop.
 
 ```bash
 npm install
-cp .env.example .env        # optional for local dev; 127.0.0.1:1999 is the default
-npm run dev                 # Vite on :5173  +  PartyKit on :1999
+npm run dev     # Vite on port 5173 + PartyKit on port 1999
 ```
 
-Open <http://localhost:5173> — you are redirected into a fresh room. Open the
-same `/room/:id` URL in another tab or browser to collaborate.
+Open the Vite URL — you are redirected into a fresh room. Open the same
+`/room/:id` URL in another tab or browser to collaborate.
+
+No configuration is needed locally: the client falls back to the local PartyKit
+port when `VITE_PARTYKIT_HOST` is unset. `.env.example` documents that variable
+for deployment (see [Deployment](#deployment)).
 
 Type-check everything (client + server + shared): `npm run typecheck`.
 
