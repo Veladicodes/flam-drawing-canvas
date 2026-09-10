@@ -11,7 +11,19 @@ export const PROTOCOL_VERSION = 3;
 
 export type Point = { x: number; y: number };
 
-export type Tool = "pen" | "eraser";
+export type Tool = "pen" | "eraser" | "rect" | "ellipse" | "arrow";
+
+export const TOOLS: readonly Tool[] = [
+  "pen",
+  "eraser",
+  "rect",
+  "ellipse",
+  "arrow",
+];
+
+/** Shape tools store only [start, end] in `points` and render a primitive. */
+export const isShapeTool = (tool: Tool): boolean =>
+  tool === "rect" || tool === "ellipse" || tool === "arrow";
 
 export type Stroke = {
   id: string;

@@ -6,6 +6,7 @@ import {
   encode,
   type Peer,
   type Stroke,
+  TOOLS,
 } from "../shared/protocol.ts";
 
 const STORAGE_KEY = "strokes";
@@ -112,7 +113,7 @@ function isValidStroke(s: unknown): s is Stroke {
   return (
     typeof stroke.id === "string" &&
     typeof stroke.clientId === "string" &&
-    (stroke.tool === "pen" || stroke.tool === "eraser") &&
+    TOOLS.includes(stroke.tool as (typeof TOOLS)[number]) &&
     typeof stroke.color === "string" &&
     typeof stroke.size === "number" &&
     typeof stroke.lamport === "number" &&

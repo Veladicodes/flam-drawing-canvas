@@ -1,4 +1,4 @@
-import type { Stroke } from "../../shared/protocol.ts";
+import { isShapeTool, type Stroke } from "../../shared/protocol.ts";
 
 /**
  * Size the canvas backing store to the element's CSS box times devicePixelRatio,
@@ -36,6 +36,12 @@ export function renderStroke(
     stroke.tool === "eraser" ? "destination-out" : "source-over";
   ctx.strokeStyle = stroke.color;
   ctx.fillStyle = stroke.color;
+
+  if (isShapeTool(stroke.tool)) {
+    renderShape(ctx, stroke);
+    ctx.restore();
+    return;
+  }
 
   if (points.length === 1) {
     // A tap: render a dot so single clicks leave a mark.
@@ -90,6 +96,52 @@ export function exportPng(
     a.remove();
     URL.revokeObjectURL(url);
   }, "image/png");
+}
+
+/** Render a shape stroke from its first point to its last point. */
+function renderShape(ctx: CanvasRenderingContext2D, stroke: Stroke): void {
+  const a = stroke.points[0];
+  const b = stroke.points[stroke.points.length - 1];
+
+  if (stroke.tool === "rect") {
+    ctx.strokeRect(a.x, a.y, b.x - a.x, b.y - a.y);
+    return;
+  }
+
+  if (stroke.tool === "ellipse") {
+    ctx.beginPath();
+    ctx.ellipse(
+      (a.x + b.x) / 2,
+      (a.y + b.y) / 2,
+      Math.abs(b.x - a.x) / 2,
+      Math.abs(b.y - a.y) / 2,
+      0,
+      0,
+      Math.PI * 2,
+    );
+    ctx.stroke();
+    return;
+  }
+
+  // arrow: shaft + a filled head, its length scaling gently with brush size
+  const head = 8 + stroke.size * 2;
+  const angle = Math.atan2(b.y - a.y, b.x - a.x);
+  ctx.beginPath();
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(b.x, b.y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(b.x, b.y);
+  ctx.lineTo(
+    b.x - head * Math.cos(angle - Math.PI / 7),
+    b.y - head * Math.sin(angle - Math.PI / 7),
+  );
+  ctx.lineTo(
+    b.x - head * Math.cos(angle + Math.PI / 7),
+    b.y - head * Math.sin(angle + Math.PI / 7),
+  );
+  ctx.closePath();
+  ctx.fill();
 }
 
 /** Clear and repaint the full stroke list. */

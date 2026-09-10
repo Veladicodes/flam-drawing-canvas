@@ -53,7 +53,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   size: 4,
 
   setTool: (tool) => set({ tool }),
-  setColor: (color) => set({ color, tool: "pen" }),
+  setColor: (color) =>
+    set((s) => ({ color, tool: s.tool === "eraser" ? "pen" : s.tool })),
   setSize: (size) => set({ size }),
 
   setStrokes: (strokes) =>

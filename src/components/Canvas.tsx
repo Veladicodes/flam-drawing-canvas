@@ -4,7 +4,7 @@ import { fitCanvasToDisplay, renderStroke, repaint } from "../lib/draw.ts";
 import { newStrokeId } from "../lib/ids.ts";
 import { tick } from "../lib/lamport.ts";
 import { CLIENT_ID } from "../lib/session.ts";
-import type { Point, Stroke } from "../../shared/protocol.ts";
+import { isShapeTool, type Point, type Stroke } from "../../shared/protocol.ts";
 import { useCanvasStore } from "../store/canvasStore.ts";
 
 type Props = {
@@ -85,9 +85,17 @@ export function Canvas({ onStrokeComplete, onCursorMove }: Props) {
       const ctx = ctxRef.current;
       if (!draft || !ctx) return;
 
+      if (isShapeTool(draft.tool)) {
+        // Shapes are defined by two points and change every frame, so repaint
+        // committed history and redraw the live preview on top.
+        draft.points[1] = point;
+        repaint(ctx, useCanvasStore.getState().strokes);
+        renderStroke(ctx, draft);
+        return;
+      }
+
       const prev = draft.points[draft.points.length - 1];
-      const next = point;
-      draft.points.push(next);
+      draft.points.push(point);
 
       // Draw just the new segment for a zero-latency local feel.
       ctx.save();
@@ -99,7 +107,7 @@ export function Canvas({ onStrokeComplete, onCursorMove }: Props) {
       ctx.strokeStyle = draft.color;
       ctx.beginPath();
       ctx.moveTo(prev.x, prev.y);
-      ctx.lineTo(next.x, next.y);
+      ctx.lineTo(point.x, point.y);
       ctx.stroke();
       ctx.restore();
     },
@@ -116,6 +124,15 @@ export function Canvas({ onStrokeComplete, onCursorMove }: Props) {
       } catch {
         /* pointer already released */
       }
+
+      // Discard a shape that was clicked but never dragged.
+      const a = draft.points[0];
+      const b = draft.points[draft.points.length - 1];
+      if (isShapeTool(draft.tool) && Math.hypot(b.x - a.x, b.y - a.y) < 3) {
+        repaint(ctxRef.current!, useCanvasStore.getState().strokes);
+        return;
+      }
+
       commitLocalStroke(draft);
       onStrokeComplete?.(draft);
     },

@@ -1,9 +1,10 @@
 # Flam · Real-Time Collaborative Drawing Canvas
 
 Multiplayer freehand drawing. Open a room, share the URL, and everyone draws on
-the same canvas in real time — with live cursors, presence, a colour/size/eraser
-toolbar, and synced undo/redo. New joiners get the full history replayed; strokes
-survive server restarts.
+the same canvas in real time — live cursors, presence, a colour/size/eraser
+toolbar, shape tools, PNG export, and synced undo/redo. New joiners get the full
+history replayed; strokes survive server restarts; the board reconnects and
+resyncs on network drop.
 
 **Live demo:** <https://flam-drawing-canvas.vercel.app>
 **Stack:** React 19 · TypeScript · Vite 6 · Zustand · PartyKit (edge WebSockets)
@@ -134,6 +135,10 @@ expose *concurrency* (which strokes were truly parallel), enabling smarter merge
   shared logical space (or a pan/zoom transform) is the Tier 3 fix.
 - **Presence is in-memory.** Peers vanish on server restart and are rebuilt from
   the next `hello`; only strokes are durable.
+- **Shapes reuse the `Stroke` model.** A rect/ellipse/arrow is a stroke whose
+  `points` are just `[start, end]` and whose `tool` picks the renderer — so
+  history, undo/redo, ordering, and persistence all work unchanged. Live preview
+  repaints the board each frame while dragging.
 - **Full canvas repaint on history change.** `repaint()` clears and redraws every
   stroke whenever the committed list changes. Trivially correct and fine for
   hundreds of strokes; a layered/offscreen-canvas cache is the scaling path.
@@ -177,10 +182,12 @@ to `index.html` for client-side routing. Redeploy after setting the var.
 |------|-------|--------|
 | **1** | local-first canvas · room sync · stroke broadcast · history replay · storage · deploy | ✅ done |
 | **2** | live cursors (throttled) · presence · toolbar (colour/size/eraser) · synced undo/redo | ✅ done |
-| **3** | shapes · PNG export · pan/zoom infinite canvas · vector-clock stroke ordering · reconnect/resync | planned |
+| **3** | shape tools · PNG export · Lamport stroke ordering · reconnect + resync | ✅ done (pan/zoom deferred) |
 
 ### What I'd do with more time
 
+- Pannable/zoomable infinite canvas (a viewport transform threaded through every
+  coordinate path) — deferred to avoid regressing a working deployed demo.
 - Live point streaming with a per-`clientId` partial-stroke buffer.
 - Move storage from a single `strokes` blob to per-stroke keys so undo/redo and
   large histories don't rewrite the whole array; debounce writes.

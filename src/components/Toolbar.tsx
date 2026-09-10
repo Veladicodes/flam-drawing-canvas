@@ -51,6 +51,30 @@ export function Toolbar({ onUndo, onRedo, onExport }: Props) {
         >
           🩹
         </button>
+        <button
+          className="tool-btn"
+          data-active={tool === "rect"}
+          onClick={() => setTool("rect")}
+          title="Rectangle"
+        >
+          ▭
+        </button>
+        <button
+          className="tool-btn"
+          data-active={tool === "ellipse"}
+          onClick={() => setTool("ellipse")}
+          title="Ellipse"
+        >
+          ◯
+        </button>
+        <button
+          className="tool-btn"
+          data-active={tool === "arrow"}
+          onClick={() => setTool("arrow")}
+          title="Arrow"
+        >
+          ↗
+        </button>
       </div>
 
       <div className="tool-sep" />
@@ -60,7 +84,7 @@ export function Toolbar({ onUndo, onRedo, onExport }: Props) {
           <button
             key={c}
             className="swatch"
-            data-active={tool === "pen" && color.toLowerCase() === c}
+            data-active={tool !== "eraser" && color.toLowerCase() === c}
             style={{ background: c }}
             onClick={() => setColor(c)}
             title={c}
