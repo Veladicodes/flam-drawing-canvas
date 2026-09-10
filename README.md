@@ -1,7 +1,8 @@
 # Flam · Real-Time Collaborative Drawing Canvas
 
 Multiplayer freehand drawing. Open a room, share the URL, and everyone draws on
-the same canvas in real time. New joiners get the full history replayed; strokes
+the same canvas in real time — with live cursors, presence, a colour/size/eraser
+toolbar, and synced undo/redo. New joiners get the full history replayed; strokes
 survive server restarts.
 
 **Live demo:** <https://flam-drawing-canvas.vercel.app>
@@ -54,14 +55,33 @@ Type-check everything (client + server + shared): `npm run typecheck`.
 - **Rooms.** `/` redirects to `/room/<nanoid>`; each room id maps to its own
   PartyKit instance, so canvases are fully independent. Unknown paths bounce
   back to `/`.
+- **Presence & cursors.** On connect the client sends `hello` with a persisted
+  animal name + HSL colour; the server keeps an in-memory `peers` map (never
+  persisted) and broadcasts `presence` on join/leave. Cursor positions are
+  relayed at ~30ms (trailing-throttled) and dropped when a peer leaves.
+- **Undo/redo.** A client can only undo/redo **its own** strokes. Undo removes
+  the stroke locally and sends `stroke:remove`; the server filters history,
+  persists, and fans out. Redo re-sends the original `stroke:add`.
+
+### State stores (Zustand)
+
+| Store | Holds | Re-renders |
+|-------|-------|------------|
+| `canvasStore` | `strokes`, `redoStack`, tool/colour/size | canvas repaint |
+| `presenceStore` | `peers`, `self`, `cursors` | HUD + cursor overlay only |
+
+Cursors live in their own store so 30ms updates never touch the canvas.
 
 ### Message protocol
 
 | Direction | Message | Purpose |
 |-----------|---------|---------|
-| S → C | `init { strokes, self }` | full history + assigned connection id on join |
-| C → S | `stroke:add { stroke }` | publish a completed local stroke |
-| S → C | `stroke:add { stroke }` | a peer's completed stroke |
+| S → C | `init { strokes, self, peers }` | history + connection id + current presence |
+| C → S | `hello { name, color }` | announce identity on connect |
+| C ↔ S | `stroke:add { stroke }` | a completed stroke (echoed to all but sender) |
+| C ↔ S | `stroke:remove { id }` | undo — delete a stroke everywhere |
+| S → C | `presence { peers }` | roster changed |
+| C → S | `cursor { x, y }` · S → C | `cursor { id, x, y }` | throttled live pointer |
 
 A `Stroke` is `{ id, clientId, tool, color, size, points[], createdAt }` with
 points in CSS-pixel canvas space.
@@ -70,10 +90,18 @@ points in CSS-pixel canvas space.
 
 ## Design decisions & tradeoffs
 
-- **Broadcast completed strokes, not live points (Tier 1).** One stroke = one
-  atomic message: simple, and robust to packet loss. The cost is that peers see a
-  stroke appear only on `pointerup`. Live ~30ms point streaming is the first
-  Tier 2 item.
+- **Broadcast completed strokes, not live points.** One stroke = one atomic
+  message: simple, and robust to packet loss. The cost is that peers see a stroke
+  appear only on `pointerup`. Live point streaming is a Tier 3 item.
+- **Undo is own-strokes-only, and redo re-appends at the end.** Per-client undo
+  avoids cross-user conflict entirely. A redone stroke goes back on top rather
+  than at its original z-index — acceptable for freehand; a real fix needs
+  positional or vector-clock ordering.
+- **Cursor & stroke coordinates are absolute CSS pixels.** Simple and exact when
+  viewports match; a smaller window sees peer content offset. Normalising to a
+  shared logical space (or a pan/zoom transform) is the Tier 3 fix.
+- **Presence is in-memory.** Peers vanish on server restart and are rebuilt from
+  the next `hello`; only strokes are durable.
 - **Full canvas repaint on history change.** `repaint()` clears and redraws every
   stroke whenever the committed list changes. Trivially correct and fine for
   hundreds of strokes; a layered/offscreen-canvas cache is the scaling path.
@@ -116,7 +144,7 @@ to `index.html` for client-side routing. Redeploy after setting the var.
 | Tier | Scope | Status |
 |------|-------|--------|
 | **1** | local-first canvas · room sync · stroke broadcast · history replay · storage · deploy | ✅ done |
-| **2** | live cursors (throttled) · presence · toolbar (color/size/eraser) · synced undo/redo | planned |
+| **2** | live cursors (throttled) · presence · toolbar (colour/size/eraser) · synced undo/redo | ✅ done |
 | **3** | shapes · PNG export · pan/zoom infinite canvas · vector-clock stroke ordering · reconnect/resync | planned |
 
 ### What I'd do with more time
@@ -127,4 +155,5 @@ to `index.html` for client-side routing. Redeploy after setting the var.
 - Offscreen-canvas render cache; only repaint the dirty region.
 - Merge (not replace) on `init` to keep pre-connection strokes.
 - Interpolation/smoothing (Catmull-Rom or `perfect-freehand`) for nicer lines.
-- Presence-aware conflict handling documented as the R&D angle.
+- Normalise coordinates to a shared logical space so mismatched viewports agree.
+- Vector-clock stroke ordering for conflict-free concurrent edits (the R&D angle).
