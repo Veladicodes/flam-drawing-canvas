@@ -17,9 +17,10 @@ const SIZES = [2, 4, 8, 16, 28];
 type Props = {
   onUndo: () => void;
   onRedo: () => void;
+  onExport: () => void;
 };
 
-export function Toolbar({ onUndo, onRedo }: Props) {
+export function Toolbar({ onUndo, onRedo, onExport }: Props) {
   const tool = useCanvasStore((s) => s.tool);
   const color = useCanvasStore((s) => s.color);
   const size = useCanvasStore((s) => s.size);
@@ -110,6 +111,12 @@ export function Toolbar({ onUndo, onRedo }: Props) {
           ↷
         </button>
       </div>
+
+      <div className="tool-sep" />
+
+      <button className="tool-btn" onClick={onExport} title="Export as PNG">
+        ⬇
+      </button>
     </div>
   );
 }

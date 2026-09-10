@@ -56,6 +56,42 @@ export function renderStroke(
   ctx.restore();
 }
 
+/**
+ * Render the whole board onto an offscreen canvas the size of the current
+ * viewport (over an opaque background) and trigger a PNG download.
+ */
+export function exportPng(
+  strokes: readonly Stroke[],
+  background = "#0f1115",
+): void {
+  const dpr = window.devicePixelRatio || 1;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  ctx.scale(dpr, dpr);
+  ctx.fillStyle = background;
+  ctx.fillRect(0, 0, w, h);
+  for (const stroke of strokes) renderStroke(ctx, stroke);
+
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `flam-canvas-${Date.now()}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, "image/png");
+}
+
 /** Clear and repaint the full stroke list. */
 export function repaint(
   ctx: CanvasRenderingContext2D,

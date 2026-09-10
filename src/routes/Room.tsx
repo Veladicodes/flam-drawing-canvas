@@ -5,6 +5,7 @@ import { Canvas } from "../components/Canvas.tsx";
 import { Cursors } from "../components/Cursors.tsx";
 import { Presence } from "../components/Presence.tsx";
 import { Toolbar } from "../components/Toolbar.tsx";
+import { exportPng } from "../lib/draw.ts";
 import { useRoomSocket } from "../net/useRoomSocket.ts";
 import { useCanvasStore } from "../store/canvasStore.ts";
 
@@ -68,7 +69,11 @@ export function Room() {
       <Presence />
       <Canvas onStrokeComplete={sendStroke} onCursorMove={sendCursor} />
       <Cursors />
-      <Toolbar onUndo={handleUndo} onRedo={handleRedo} />
+      <Toolbar
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        onExport={() => exportPng(useCanvasStore.getState().strokes)}
+      />
     </>
   );
 }
