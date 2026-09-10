@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   decodeServerMessage,
   encode,
+  type Point,
   type Stroke,
 } from "../../shared/protocol.ts";
 import { getIdentity } from "../lib/identity.ts";
@@ -25,6 +26,7 @@ export function useRoomSocket(roomId: string) {
   const removeStroke = useCanvasStore((s) => s.removeStroke);
   const setPeers = usePresenceStore((s) => s.setPeers);
   const setSelf = usePresenceStore((s) => s.setSelf);
+  const setCursor = usePresenceStore((s) => s.setCursor);
 
   useEffect(() => {
     const socket = new PartySocket({
@@ -53,6 +55,8 @@ export function useRoomSocket(roomId: string) {
         removeStroke(msg.id);
       } else if (msg.t === "presence") {
         setPeers(msg.peers);
+      } else if (msg.t === "cursor") {
+        setCursor(msg.id, msg.x, msg.y);
       }
     };
 
@@ -68,7 +72,7 @@ export function useRoomSocket(roomId: string) {
       socketRef.current = null;
       setConnected(false);
     };
-  }, [roomId, setStrokes, addStroke, removeStroke, setPeers, setSelf]);
+  }, [roomId, setStrokes, addStroke, removeStroke, setPeers, setSelf, setCursor]);
 
   const sendStroke = useCallback((stroke: Stroke) => {
     socketRef.current?.send(encode({ t: "stroke:add", stroke }));
@@ -78,5 +82,33 @@ export function useRoomSocket(roomId: string) {
     socketRef.current?.send(encode({ t: "stroke:remove", id }));
   }, []);
 
-  return { connected, sendStroke, sendRemove };
+  // Throttle cursor broadcasts to ~30ms with a trailing send so the final
+  // resting position is never dropped.
+  const cursor = useRef({ last: 0, timer: 0 as number, pending: null as Point | null });
+  useEffect(
+    () => () => {
+      if (cursor.current.timer) window.clearTimeout(cursor.current.timer);
+    },
+    [],
+  );
+
+  const sendCursor = useCallback((point: Point) => {
+    const state = cursor.current;
+    state.pending = point;
+    const flush = () => {
+      state.timer = 0;
+      state.last = Date.now();
+      if (state.pending) {
+        socketRef.current?.send(
+          encode({ t: "cursor", x: state.pending.x, y: state.pending.y }),
+        );
+        state.pending = null;
+      }
+    };
+    const elapsed = Date.now() - state.last;
+    if (elapsed >= 30) flush();
+    else if (!state.timer) state.timer = window.setTimeout(flush, 30 - elapsed);
+  }, []);
+
+  return { connected, sendStroke, sendRemove, sendCursor };
 }

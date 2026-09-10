@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { Canvas } from "../components/Canvas.tsx";
+import { Cursors } from "../components/Cursors.tsx";
 import { Presence } from "../components/Presence.tsx";
 import { Toolbar } from "../components/Toolbar.tsx";
 import { useRoomSocket } from "../net/useRoomSocket.ts";
@@ -9,7 +10,8 @@ import { useCanvasStore } from "../store/canvasStore.ts";
 
 export function Room() {
   const { roomId = "" } = useParams<{ roomId: string }>();
-  const { connected, sendStroke, sendRemove } = useRoomSocket(roomId);
+  const { connected, sendStroke, sendRemove, sendCursor } =
+    useRoomSocket(roomId);
   const [copied, setCopied] = useState(false);
 
   const undo = useCanvasStore((s) => s.undo);
@@ -64,7 +66,8 @@ export function Room() {
         </button>
       </div>
       <Presence />
-      <Canvas onStrokeComplete={sendStroke} />
+      <Canvas onStrokeComplete={sendStroke} onCursorMove={sendCursor} />
+      <Cursors />
       <Toolbar onUndo={handleUndo} onRedo={handleRedo} />
     </>
   );
