@@ -11,7 +11,7 @@ import { useCanvasStore } from "../store/canvasStore.ts";
 
 export function Room() {
   const { roomId = "" } = useParams<{ roomId: string }>();
-  const { connected, sendStroke, sendRemove, sendCursor } =
+  const { status, connected, sendStroke, sendRemove, sendCursor } =
     useRoomSocket(roomId);
   const [copied, setCopied] = useState(false);
 
@@ -60,7 +60,11 @@ export function Room() {
         <span>room</span>
         <span className="room-id">{roomId}</span>
         <span className="status" data-connected={connected}>
-          {connected ? "● live" : "○ connecting"}
+          {status === "live"
+            ? "● live"
+            : status === "reconnecting"
+              ? "◐ reconnecting"
+              : "○ connecting"}
         </span>
         <button className="hud-btn" onClick={copyLink}>
           {copied ? "copied!" : "copy invite link"}

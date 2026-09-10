@@ -2,6 +2,7 @@ import PartySocket from "partysocket";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  type ClientMessage,
   decodeServerMessage,
   encode,
   type Point,
@@ -13,13 +14,23 @@ import { usePresenceStore } from "../store/presenceStore.ts";
 
 const PARTY_HOST = import.meta.env.VITE_PARTYKIT_HOST || "127.0.0.1:1999";
 
+export type ConnStatus = "connecting" | "live" | "reconnecting";
+
+/** An outbound message plus the local store effect to replay it against. */
+type Queued = { msg: ClientMessage; replay: () => void };
+
 /**
  * Opens a PartySocket for the given room and pipes server messages into the
- * canvas store. Returns connection status and a helper to publish local strokes.
+ * stores. Handles reconnection: `partysocket` reopens the socket automatically,
+ * and on every (re)connect the server sends a fresh `init` that we treat as the
+ * source of truth. Writes attempted while offline are buffered and replayed
+ * after the post-reconnect resync so local work is never silently lost.
  */
 export function useRoomSocket(roomId: string) {
   const socketRef = useRef<PartySocket | null>(null);
-  const [connected, setConnected] = useState(false);
+  const outbox = useRef<Queued[]>([]);
+  const everConnected = useRef(false);
+  const [status, setStatus] = useState<ConnStatus>("connecting");
 
   const setStrokes = useCanvasStore((s) => s.setStrokes);
   const addStroke = useCanvasStore((s) => s.addStroke);
@@ -37,26 +48,44 @@ export function useRoomSocket(roomId: string) {
     socketRef.current = socket;
 
     const onOpen = () => {
-      setConnected(true);
       const { name, color } = getIdentity();
       socket.send(encode({ t: "hello", name, color }));
+      // `init` follows; the outbox is flushed once that resync lands.
     };
-    const onClose = () => setConnected(false);
+    const onClose = () => {
+      setStatus(everConnected.current ? "reconnecting" : "connecting");
+    };
     const onMessage = (event: MessageEvent<string>) => {
       const msg = decodeServerMessage(event.data);
       if (!msg) return;
-      if (msg.t === "init") {
-        setStrokes(msg.strokes);
-        setSelf(msg.self);
-        setPeers(msg.peers);
-      } else if (msg.t === "stroke:add") {
-        addStroke(msg.stroke);
-      } else if (msg.t === "stroke:remove") {
-        removeStroke(msg.id);
-      } else if (msg.t === "presence") {
-        setPeers(msg.peers);
-      } else if (msg.t === "cursor") {
-        setCursor(msg.id, msg.x, msg.y);
+      switch (msg.t) {
+        case "init": {
+          setStrokes(msg.strokes);
+          setSelf(msg.self);
+          setPeers(msg.peers);
+          everConnected.current = true;
+          setStatus("live");
+          // Resync done — replay anything queued while we were offline.
+          const pending = outbox.current;
+          outbox.current = [];
+          for (const { msg: queued, replay } of pending) {
+            replay();
+            socket.send(encode(queued));
+          }
+          break;
+        }
+        case "stroke:add":
+          addStroke(msg.stroke);
+          break;
+        case "stroke:remove":
+          removeStroke(msg.id);
+          break;
+        case "presence":
+          setPeers(msg.peers);
+          break;
+        case "cursor":
+          setCursor(msg.id, msg.x, msg.y);
+          break;
       }
     };
 
@@ -70,20 +99,40 @@ export function useRoomSocket(roomId: string) {
       socket.removeEventListener("message", onMessage);
       socket.close();
       socketRef.current = null;
-      setConnected(false);
+      outbox.current = [];
+      everConnected.current = false;
+      setStatus("connecting");
     };
   }, [roomId, setStrokes, addStroke, removeStroke, setPeers, setSelf, setCursor]);
 
-  const sendStroke = useCallback((stroke: Stroke) => {
-    socketRef.current?.send(encode({ t: "stroke:add", stroke }));
+  /** Send now if the socket is open, otherwise queue for post-reconnect replay. */
+  const dispatch = useCallback((msg: ClientMessage, replay: () => void) => {
+    const socket = socketRef.current;
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(encode(msg));
+    } else {
+      outbox.current.push({ msg, replay });
+    }
   }, []);
 
-  const sendRemove = useCallback((id: string) => {
-    socketRef.current?.send(encode({ t: "stroke:remove", id }));
-  }, []);
+  const sendStroke = useCallback(
+    (stroke: Stroke) =>
+      dispatch({ t: "stroke:add", stroke }, () =>
+        useCanvasStore.getState().addStroke(stroke),
+      ),
+    [dispatch],
+  );
+
+  const sendRemove = useCallback(
+    (id: string) =>
+      dispatch({ t: "stroke:remove", id }, () =>
+        useCanvasStore.getState().removeStroke(id),
+      ),
+    [dispatch],
+  );
 
   // Throttle cursor broadcasts to ~30ms with a trailing send so the final
-  // resting position is never dropped.
+  // resting position is never dropped. Cursors are disposable — never queued.
   const cursor = useRef({ last: 0, timer: 0 as number, pending: null as Point | null });
   useEffect(
     () => () => {
@@ -98,17 +147,22 @@ export function useRoomSocket(roomId: string) {
     const flush = () => {
       state.timer = 0;
       state.last = Date.now();
-      if (state.pending) {
-        socketRef.current?.send(
-          encode({ t: "cursor", x: state.pending.x, y: state.pending.y }),
-        );
-        state.pending = null;
+      const socket = socketRef.current;
+      if (state.pending && socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(encode({ t: "cursor", x: state.pending.x, y: state.pending.y }));
       }
+      state.pending = null;
     };
     const elapsed = Date.now() - state.last;
     if (elapsed >= 30) flush();
     else if (!state.timer) state.timer = window.setTimeout(flush, 30 - elapsed);
   }, []);
 
-  return { connected, sendStroke, sendRemove, sendCursor };
+  return {
+    status,
+    connected: status === "live",
+    sendStroke,
+    sendRemove,
+    sendCursor,
+  };
 }
