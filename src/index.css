@@ -97,3 +97,124 @@ select {
   place-items: center;
   color: var(--text-dim);
 }
+
+/* --- Toolbar --------------------------------------------------------------- */
+
+.toolbar {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 30px rgb(0 0 0 / 35%);
+  user-select: none;
+}
+
+.tool-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tool-sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--panel-border);
+  margin: 2px 4px;
+}
+
+.tool-btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, opacity 0.12s;
+}
+
+.tool-btn:hover {
+  background: rgb(255 255 255 / 6%);
+}
+
+.tool-btn[data-active="true"] {
+  background: rgb(110 168 254 / 18%);
+  border-color: var(--accent);
+}
+
+.tool-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 15%);
+}
+
+.swatch[data-active="true"] {
+  border-color: var(--text);
+}
+
+.swatch-custom {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);
+}
+
+.swatch-custom input {
+  width: 200%;
+  height: 200%;
+  border: none;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.size-btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.size-btn:hover {
+  background: rgb(255 255 255 / 6%);
+}
+
+.size-btn[data-active="true"] {
+  background: rgb(110 168 254 / 18%);
+  border-color: var(--accent);
+}
+
+.size-btn span {
+  display: block;
+  min-width: 2px;
+  min-height: 2px;
+  max-width: 24px;
+  max-height: 24px;
+  background: var(--text);
+  border-radius: 50%;
+}

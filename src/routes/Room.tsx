@@ -1,13 +1,44 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { Canvas } from "../components/Canvas.tsx";
+import { Toolbar } from "../components/Toolbar.tsx";
 import { useRoomSocket } from "../net/useRoomSocket.ts";
+import { useCanvasStore } from "../store/canvasStore.ts";
 
 export function Room() {
   const { roomId = "" } = useParams<{ roomId: string }>();
-  const { connected, sendStroke } = useRoomSocket(roomId);
+  const { connected, sendStroke, sendRemove } = useRoomSocket(roomId);
   const [copied, setCopied] = useState(false);
+
+  const undo = useCanvasStore((s) => s.undo);
+  const redo = useCanvasStore((s) => s.redo);
+
+  const handleUndo = useCallback(() => {
+    const removed = undo();
+    if (removed) sendRemove(removed.id);
+  }, [undo, sendRemove]);
+
+  const handleRedo = useCallback(() => {
+    const restored = redo();
+    if (restored) sendStroke(restored);
+  }, [redo, sendStroke]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const key = e.key.toLowerCase();
+      if (key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      } else if ((key === "z" && e.shiftKey) || key === "y") {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [handleUndo, handleRedo]);
 
   const copyLink = async () => {
     try {
@@ -32,6 +63,7 @@ export function Room() {
         </button>
       </div>
       <Canvas onStrokeComplete={sendStroke} />
+      <Toolbar onUndo={handleUndo} onRedo={handleRedo} />
     </>
   );
 }

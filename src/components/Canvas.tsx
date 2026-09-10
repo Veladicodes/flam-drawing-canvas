@@ -9,15 +9,17 @@ import { useCanvasStore } from "../store/canvasStore.ts";
 type Props = {
   /** Called when the local user finishes a stroke. */
   onStrokeComplete?: (stroke: Stroke) => void;
+  /** Called on every pointer move over the canvas (hovering or drawing). */
+  onCursorMove?: (point: Point) => void;
 };
 
-export function Canvas({ onStrokeComplete }: Props) {
+export function Canvas({ onStrokeComplete, onCursorMove }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const draftRef = useRef<Stroke | null>(null);
 
   const strokes = useCanvasStore((s) => s.strokes);
-  const addStroke = useCanvasStore((s) => s.addStroke);
+  const commitLocalStroke = useCanvasStore((s) => s.commitLocalStroke);
 
   // Set up the context once and keep it sized to the viewport.
   useEffect(() => {
@@ -74,12 +76,15 @@ export function Canvas({ onStrokeComplete }: Props) {
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
+      const point = pointFromEvent(e);
+      onCursorMove?.(point);
+
       const draft = draftRef.current;
       const ctx = ctxRef.current;
       if (!draft || !ctx) return;
 
       const prev = draft.points[draft.points.length - 1];
-      const next = pointFromEvent(e);
+      const next = point;
       draft.points.push(next);
 
       // Draw just the new segment for a zero-latency local feel.
@@ -109,10 +114,10 @@ export function Canvas({ onStrokeComplete }: Props) {
       } catch {
         /* pointer already released */
       }
-      addStroke(draft);
+      commitLocalStroke(draft);
       onStrokeComplete?.(draft);
     },
-    [addStroke, onStrokeComplete],
+    [commitLocalStroke, onStrokeComplete],
   );
 
   return (

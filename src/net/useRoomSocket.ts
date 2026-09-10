@@ -20,6 +20,7 @@ export function useRoomSocket(roomId: string) {
 
   const setStrokes = useCanvasStore((s) => s.setStrokes);
   const addStroke = useCanvasStore((s) => s.addStroke);
+  const removeStroke = useCanvasStore((s) => s.removeStroke);
 
   useEffect(() => {
     const socket = new PartySocket({
@@ -38,6 +39,8 @@ export function useRoomSocket(roomId: string) {
         setStrokes(msg.strokes);
       } else if (msg.t === "stroke:add") {
         addStroke(msg.stroke);
+      } else if (msg.t === "stroke:remove") {
+        removeStroke(msg.id);
       }
     };
 
@@ -53,11 +56,15 @@ export function useRoomSocket(roomId: string) {
       socketRef.current = null;
       setConnected(false);
     };
-  }, [roomId, setStrokes, addStroke]);
+  }, [roomId, setStrokes, addStroke, removeStroke]);
 
   const sendStroke = useCallback((stroke: Stroke) => {
     socketRef.current?.send(encode({ t: "stroke:add", stroke }));
   }, []);
 
-  return { connected, sendStroke };
+  const sendRemove = useCallback((id: string) => {
+    socketRef.current?.send(encode({ t: "stroke:remove", id }));
+  }, []);
+
+  return { connected, sendStroke, sendRemove };
 }
