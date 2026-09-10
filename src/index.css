@@ -69,6 +69,22 @@ select {
   color: #59d499;
 }
 
+.hud-btn {
+  margin-left: 4px;
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--panel-border);
+  border-radius: 7px;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.hud-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
 .center {
   position: fixed;
   inset: 0;
