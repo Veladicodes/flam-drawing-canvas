@@ -9,6 +9,7 @@ import {
   type Stroke,
 } from "../../shared/protocol.ts";
 import { getIdentity } from "../lib/identity.ts";
+import { observe } from "../lib/lamport.ts";
 import { useCanvasStore } from "../store/canvasStore.ts";
 import { usePresenceStore } from "../store/presenceStore.ts";
 
@@ -60,6 +61,7 @@ export function useRoomSocket(roomId: string) {
       if (!msg) return;
       switch (msg.t) {
         case "init": {
+          for (const s of msg.strokes) observe(s.lamport);
           setStrokes(msg.strokes);
           setSelf(msg.self);
           setPeers(msg.peers);
@@ -75,6 +77,7 @@ export function useRoomSocket(roomId: string) {
           break;
         }
         case "stroke:add":
+          observe(msg.stroke.lamport);
           addStroke(msg.stroke);
           break;
         case "stroke:remove":

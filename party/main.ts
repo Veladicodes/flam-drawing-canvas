@@ -1,6 +1,7 @@
 import type * as Party from "partykit/server";
 
 import {
+  compareStrokes,
   decodeClientMessage,
   encode,
   type Peer,
@@ -33,7 +34,8 @@ export default class DrawingServer implements Party.Server {
     conn.send(
       encode({
         t: "init",
-        strokes: this.strokes,
+        // Pre-sorted into the deterministic order clients also enforce.
+        strokes: [...this.strokes].sort(compareStrokes),
         self: conn.id,
         peers: [...this.peers.values()],
       }),
@@ -113,6 +115,7 @@ function isValidStroke(s: unknown): s is Stroke {
     (stroke.tool === "pen" || stroke.tool === "eraser") &&
     typeof stroke.color === "string" &&
     typeof stroke.size === "number" &&
+    typeof stroke.lamport === "number" &&
     Array.isArray(stroke.points) &&
     stroke.points.length > 0 &&
     stroke.points.length <= MAX_POINTS_PER_STROKE &&

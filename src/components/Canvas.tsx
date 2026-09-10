@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 
 import { fitCanvasToDisplay, renderStroke, repaint } from "../lib/draw.ts";
 import { newStrokeId } from "../lib/ids.ts";
+import { tick } from "../lib/lamport.ts";
 import { CLIENT_ID } from "../lib/session.ts";
 import type { Point, Stroke } from "../../shared/protocol.ts";
 import { useCanvasStore } from "../store/canvasStore.ts";
@@ -69,6 +70,7 @@ export function Canvas({ onStrokeComplete, onCursorMove }: Props) {
         size,
         points: [pointFromEvent(e)],
         createdAt: Date.now(),
+        lamport: tick(),
       };
     },
     [pointFromEvent],

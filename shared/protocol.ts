@@ -3,7 +3,7 @@
  * This is the single source of truth for every WebSocket payload.
  */
 
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 // ---------------------------------------------------------------------------
 // Domain model
@@ -22,9 +22,25 @@ export type Stroke = {
   size: number;
   /** Ordered path points, in canvas/CSS-pixel space. */
   points: Point[];
-  /** `Date.now()` on the originating client. */
+  /** `Date.now()` on the originating client (wall clock, tiebreak only). */
   createdAt: number;
+  /**
+   * Lamport timestamp from the originating client. Strokes are painted in
+   * ascending `(lamport, clientId)` order so every peer converges on the same
+   * z-ordering regardless of network arrival order. See README "Stroke ordering".
+   */
+  lamport: number;
 };
+
+/** Total order all peers agree on: Lamport clock, then client id, then id. */
+export function compareStrokes(a: Stroke, b: Stroke): number {
+  return (
+    (a.lamport ?? 0) - (b.lamport ?? 0) ||
+    a.createdAt - b.createdAt ||
+    (a.clientId < b.clientId ? -1 : a.clientId > b.clientId ? 1 : 0) ||
+    (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+  );
+}
 
 /** A connected participant. Presence is ephemeral — never persisted. */
 export type Peer = {

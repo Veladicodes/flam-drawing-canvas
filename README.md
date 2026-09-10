@@ -88,6 +88,38 @@ points in CSS-pixel canvas space.
 
 ---
 
+## Stroke ordering — the R&D angle
+
+**Problem.** Strokes are broadcast independently, so two peers can receive a pair
+of near-simultaneous strokes in opposite orders. With opaque, overlapping paint
+that means the two screens disagree about which stroke is *on top* — the canvas
+has diverged even though both received the same data.
+
+**Approach: Lamport timestamps with a client-id tiebreak.**
+
+- Every tab keeps a monotonic counter (`src/lib/lamport.ts`). `tick()` before
+  creating a stroke stamps it with `lamport`; `observe(remote)` on receipt sets
+  `clock = max(clock, remote) + 1`, keeping this tab causally ahead of anything
+  it has seen.
+- The render order is a **total order** on `(lamport, clientId, id)`
+  (`compareStrokes` in `shared/protocol.ts`). Lamport ordering preserves
+  causality (if stroke B was drawn after the artist saw stroke A, `B.lamport >
+  A.lamport`); `clientId` then `id` break ties deterministically.
+- `canvasStore` keeps `strokes` sorted by that comparator on every insert, and
+  the server pre-sorts the `init` history. Result: **every peer paints strokes
+  in the same order, regardless of arrival order** — the canvas converges.
+
+**Why not wall-clock time?** Unsynchronised clocks and clock skew reorder causal
+events. `createdAt` is kept only as a secondary tiebreak.
+
+**Limits / what's next.** Lamport gives a consistent *total* order but not a
+minimal one — a late-arriving stroke with a low `lamport` correctly sorts under
+newer strokes and the affected region repaints. A vector clock would additionally
+expose *concurrency* (which strokes were truly parallel), enabling smarter merge
+/ conflict UI. Full CRDT semantics (e.g. per-stroke Yjs) is the end state.
+
+---
+
 ## Design decisions & tradeoffs
 
 - **Broadcast completed strokes, not live points.** One stroke = one atomic

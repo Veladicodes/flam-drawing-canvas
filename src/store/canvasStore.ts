@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 import { CLIENT_ID } from "../lib/session.ts";
-import type { Stroke, Tool } from "../../shared/protocol.ts";
+import { compareStrokes, type Stroke, type Tool } from "../../shared/protocol.ts";
 
 interface CanvasState {
   /** Committed strokes, in paint order. */
@@ -39,8 +39,11 @@ interface CanvasState {
   redo: () => Stroke | null;
 }
 
-const appendUnseen = (strokes: Stroke[], stroke: Stroke) =>
-  strokes.some((s) => s.id === stroke.id) ? strokes : [...strokes, stroke];
+/** Insert keeping the deterministic (lamport, clientId) order; ignore dupes. */
+const insertUnseen = (strokes: Stroke[], stroke: Stroke) =>
+  strokes.some((s) => s.id === stroke.id)
+    ? strokes
+    : [...strokes, stroke].sort(compareStrokes);
 
 export const useCanvasStore = create<CanvasState>((set, get) => ({
   strokes: [],
@@ -53,10 +56,11 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   setColor: (color) => set({ color, tool: "pen" }),
   setSize: (size) => set({ size }),
 
-  setStrokes: (strokes) => set({ strokes, redoStack: [] }),
-  addStroke: (stroke) => set((s) => ({ strokes: appendUnseen(s.strokes, stroke) })),
+  setStrokes: (strokes) =>
+    set({ strokes: [...strokes].sort(compareStrokes), redoStack: [] }),
+  addStroke: (stroke) => set((s) => ({ strokes: insertUnseen(s.strokes, stroke) })),
   commitLocalStroke: (stroke) =>
-    set((s) => ({ strokes: appendUnseen(s.strokes, stroke), redoStack: [] })),
+    set((s) => ({ strokes: insertUnseen(s.strokes, stroke), redoStack: [] })),
   removeStroke: (id) =>
     set((s) => ({ strokes: s.strokes.filter((stroke) => stroke.id !== id) })),
 
@@ -80,7 +84,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     const restored = redoStack[redoStack.length - 1];
     set({
       redoStack: redoStack.slice(0, -1),
-      strokes: appendUnseen(get().strokes, restored),
+      strokes: insertUnseen(get().strokes, restored),
     });
     return restored;
   },
