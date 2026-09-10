@@ -35,6 +35,11 @@ select {
 .canvas-surface {
   position: fixed;
   inset: 0;
+  /* <canvas> is a replaced element: without an explicit CSS size it renders
+     at its intrinsic 300x150 and ignores `inset`. Pin it to the viewport. */
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
   touch-action: none;
   cursor: crosshair;
   display: block;
