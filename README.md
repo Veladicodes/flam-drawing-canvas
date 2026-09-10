@@ -4,7 +4,7 @@ Multiplayer freehand drawing. Open a room, share the URL, and everyone draws on
 the same canvas in real time. New joiners get the full history replayed; strokes
 survive server restarts.
 
-**Live demo:** _add Vercel URL here after deploy_
+**Live demo:** <https://flam-drawing-canvas.vercel.app>
 **Stack:** React 19 · TypeScript · Vite 6 · Zustand · PartyKit (edge WebSockets)
 
 ---
